@@ -17,6 +17,11 @@ const nodeCredit = document.getElementById("node-credit");
 const articleLink = document.getElementById("article-link");
 const commonsLink = document.getElementById("commons-link");
 const licenseLink = document.getElementById("license-link");
+const audioPanel = document.getElementById("audio-panel");
+const nodeAudio = document.getElementById("node-audio");
+const audioWaveform = document.getElementById("audio-waveform");
+const audioCredit = document.getElementById("audio-credit");
+const audioCommonsLink = document.getElementById("audio-commons-link");
 
 const renderer = new THREE.WebGLRenderer({ canvas: graphCanvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -39,6 +44,10 @@ let points = null;
 let pointColors = null;
 let baselineColors = null;
 let selectedIndex = -1;
+let audioContext = null;
+let audioAnalyser = null;
+let audioSource = null;
+let waveformAnimation = null;
 
 function safeHttpUrl(value) {
   if (typeof value !== "string") {
@@ -75,6 +84,7 @@ function hidePopover() {
   selectedIndex = -1;
   popover.hidden = true;
   popover.setAttribute("aria-hidden", "true");
+  nodeAudio.pause();
 }
 
 function showImage(node) {
@@ -88,6 +98,73 @@ function showImage(node) {
     nodeImage.src = thumbnail;
     nodeImage.hidden = false;
     imageFallback.hidden = true;
+  }
+
+  function stopWaveform() {
+    if (waveformAnimation !== null) {
+      cancelAnimationFrame(waveformAnimation);
+      waveformAnimation = null;
+    }
+  }
+
+  function drawWaveform() {
+    if (!audioAnalyser || nodeAudio.paused) {
+      stopWaveform();
+      return;
+    }
+    const context = audioWaveform.getContext("2d");
+    const width = audioWaveform.width;
+    const height = audioWaveform.height;
+    const samples = new Uint8Array(audioAnalyser.fftSize);
+    audioAnalyser.getByteTimeDomainData(samples);
+    context.clearRect(0, 0, width, height);
+    context.strokeStyle = "#7dd3fc";
+    context.lineWidth = 2;
+    context.beginPath();
+    samples.forEach((sample, index) => {
+      const x = (index / (samples.length - 1)) * width;
+      const y = (sample / 255) * height;
+      if (index === 0) {
+        context.moveTo(x, y);
+      } else {
+        context.lineTo(x, y);
+      }
+    });
+    context.stroke();
+    waveformAnimation = requestAnimationFrame(drawWaveform);
+  }
+
+  async function startWaveform() {
+    try {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        audioSource = audioContext.createMediaElementSource(nodeAudio);
+        audioAnalyser = audioContext.createAnalyser();
+        audioAnalyser.fftSize = 1024;
+        audioSource.connect(audioAnalyser);
+        audioAnalyser.connect(audioContext.destination);
+      }
+      await audioContext.resume();
+      stopWaveform();
+      drawWaveform();
+    } catch {
+      stopWaveform();
+    }
+  }
+
+  function showAudio(node) {
+    const audio = node.audio;
+    nodeAudio.pause();
+    nodeAudio.removeAttribute("src");
+    stopWaveform();
+    if (!audio) {
+      audioPanel.hidden = true;
+      return;
+    }
+    audioPanel.hidden = false;
+    nodeAudio.src = `/api/audio/${encodeURIComponent(node.id)}`;
+    audioCredit.textContent = `${audio.author || audio.credit} — ${audio.license_name}: ${audio.license_terms}`;
+    setLink(audioCommonsLink, audio.commons_file_url, "Commons audio source");
   }
 }
 
@@ -110,6 +187,7 @@ function showPopover(index, clientX, clientY) {
     `${node.image.license_name}: ${node.image.license_terms}`,
   );
   showImage(node);
+  showAudio(node);
   setPopoverPosition(clientX, clientY);
   popover.hidden = false;
   popover.setAttribute("aria-hidden", "false");
@@ -120,6 +198,14 @@ nodeImage.addEventListener("error", () => {
   nodeImage.removeAttribute("src");
   imageFallback.hidden = false;
   imageFallback.textContent = "Image could not be loaded.";
+});
+
+nodeAudio.addEventListener("play", startWaveform);
+nodeAudio.addEventListener("pause", stopWaveform);
+nodeAudio.addEventListener("ended", stopWaveform);
+nodeAudio.addEventListener("error", () => {
+  stopWaveform();
+  audioCredit.textContent = "Audio could not be loaded.";
 });
 
 function validNode(node) {
@@ -286,6 +372,8 @@ function resize() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
+  audioWaveform.width = Math.max(1, Math.floor(audioWaveform.clientWidth * window.devicePixelRatio));
+  audioWaveform.height = Math.max(1, Math.floor(audioWaveform.clientHeight * window.devicePixelRatio));
 }
 
 function animate() {

@@ -1,4 +1,6 @@
 import numpy as np
+from pathlib import Path
+from types import SimpleNamespace
 
 from golem2.config import MODEL_SPEC
 from golem2.model import EmbeddingGemma2Encoder, select_torch_dtype
@@ -48,14 +50,44 @@ def test_embedding_adapter_uses_multimodal_titled_documents_and_search_prompts()
     documents = encoder.embed_multimodal_documents(
         ["title: Ada Lovelace | text: mathematician"],
         [object()],
+        ["C:\\audio\\ada.ogg"],
     )
     query = encoder.embed_query("mathematician")
 
     assert np.allclose(np.linalg.norm(documents, axis=1), 1.0)
     assert np.isclose(np.linalg.norm(query), 1.0)
     multimodal_input = model.calls[0]["sentences"][0]
-    assert multimodal_input["text"] == "title: Ada Lovelace | text: mathematician <|image|>"
+    assert multimodal_input["text"] == (
+        "title: Ada Lovelace | text: mathematician <|image|> <|audio|>"
+    )
     assert multimodal_input["image"] is not None
+    assert multimodal_input["audio"] == "C:\\audio\\ada.ogg"
     assert model.calls[1]["prompt_name"] == "SearchQuery"
     assert model.calls[0]["normalize_embeddings"] is True
     assert model.calls[1]["normalize_embeddings"] is True
+
+
+def test_model_loader_leaves_audio_encoder_enabled(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeSentenceTransformer:
+        def __init__(self, *args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+
+    monkeypatch.setattr("golem2.model.verify_local_model", lambda *_: None)
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "torch",
+        _Torch(False, False),
+    )
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "sentence_transformers",
+        SimpleNamespace(SentenceTransformer=FakeSentenceTransformer),
+    )
+
+    EmbeddingGemma2Encoder(Path("model"))
+
+    assert captured["kwargs"]["model_kwargs"]["torch_dtype"] == "fp32"
+    assert "config_kwargs" not in captured["kwargs"]

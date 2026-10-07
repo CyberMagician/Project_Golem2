@@ -154,6 +154,31 @@ button {
   margin-top: 0.45rem;
 }
 
+#audio-panel {
+  border-top: 1px solid rgb(148 163 184 / 25%);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+#node-audio,
+#audio-waveform {
+  margin-top: 0.45rem;
+  width: 100%;
+}
+
+#audio-waveform {
+  background: #0f172a;
+  border: 1px solid #334155;
+  display: block;
+  height: 3.5rem;
+}
+
+#audio-credit {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 #node-summary,
 #node-popover dd {
   color: #cbd5e1;

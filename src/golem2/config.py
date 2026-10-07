@@ -10,6 +10,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL_DIR = PROJECT_ROOT / "models" / "embeddinggemma-2"
 DEFAULT_ARTIFACT_DIR = PROJECT_ROOT / "data" / "artifacts"
 DEFAULT_MANIFEST_PATH = PROJECT_ROOT / "data" / "targets.json"
+DEFAULT_AUDIO_MANIFEST_PATH = PROJECT_ROOT / "data" / "audio_targets.json"
+DEFAULT_AUDIO_CACHE_DIR = PROJECT_ROOT / "data" / "audio"
 
 
 @dataclass(frozen=True)

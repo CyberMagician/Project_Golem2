@@ -48,6 +48,19 @@ space. This project never configures `float16`: it uses `bfloat16` only when
 CUDA reports native support and otherwise uses `float32`. It does not use
 `trust_remote_code`.
 
+### Optional curated audio
+
+[`data/audio_targets.json`](data/audio_targets.json) deliberately enriches
+only three nodes—Ada Lovelace, Astronomy, and Music theory—with directly
+licensed Wikimedia Commons audio. It is not an assertion that every topic has
+audio. During corpus construction the selected Commons file metadata is
+resolved through the Action API and must include an audio MIME type, secure
+source/file/license URLs, meaningful author or credit, and license terms.
+Accepted clips are bounded to 32 MiB, checksummed, cached under ignored
+`data/audio/`, and used as `<|audio|>` inputs alongside image and titled text.
+The model keeps its audio encoder enabled; all other nodes remain text plus
+image embeddings in the same native 768-D space.
+
 ## Installation
 
 Run commands from the repository root.
@@ -119,7 +132,9 @@ still-image fallback. A build stops rather than silently emitting incomplete
 nodes. Corpus construction then downloads only those persisted,
 HTTPS-Wikimedia thumbnail URLs, verifies response MIME type, byte/pixel
 bounds, and image decoding before passing RGB images alongside the titled
-text to EmbeddingGemma 2. Image bytes are not committed.
+text to EmbeddingGemma 2. It applies the analogous required provenance and
+cache checks to the three curated audio files. Image and audio bytes are not
+committed.
 
 Generated files are written under `data/artifacts/`:
 
@@ -142,7 +157,10 @@ python -m golem2.server
 Open <http://127.0.0.1:8000>. Drag to orbit, scroll to zoom, hover nodes to
 inspect provenance, and use the query form to highlight local semantic
 matches. Images are only requested by the browser from their already-persisted
-URLs; the UI never discovers images at hover time.
+URLs; the UI never discovers images at hover time. Where a selected node has
+curated audio, its hover popover includes an accessible native player and
+on-play Web Audio waveform. It never autoplays; the player receives audio
+from a checksum-validated local cache endpoint.
 
 Example local API request:
 
@@ -168,10 +186,10 @@ python -m pytest
 
 Tests use checked-in, recorded-style Action API fixtures and never make live
 requests. They cover exact title cardinality and uniqueness, redirects,
-missing image/attribution rejection, multimodal image-plus-text model input,
-model dtype/query prompt behavior, corpus and vector compatibility, server
-query validation, and the frontend's Raycaster/text-content/URL/image-error
-contract. The optional
+missing image/attribution rejection, text/image/audio model inputs,
+model dtype/query prompt behavior, curated audio cache checksum validation,
+corpus and vector compatibility, server query validation, and the frontend's
+Raycaster/text-content/URL/image-error/no-autoplay contract. The optional
 `python -m golem2.live_validate` command is the explicit live test.
 
 ## Attribution and licenses
@@ -188,5 +206,9 @@ contract. The optional
   MIME type, and dimensions. Wikimedia content may carry additional
   obligations; use the per-node popover and Commons source page when
   redistributing it.
+- The curated audio layer resolves and exposes equivalent Commons file,
+  author/credit, license, source, MIME, checksum, and byte-count metadata for
+  its three optional clips. Review each Commons source page before
+  redistributing its media.
 - Three.js r160 is fetched from a pinned CDN URL and is MIT-licensed. See
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for runtime notices.

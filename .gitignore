@@ -8,6 +8,7 @@ htmlcov/
 # Downloaded model weights and generated local corpus data are reproducible.
 models/
 data/artifacts/
+data/audio/
 
 # Local editor and operating-system files.
 .vscode/

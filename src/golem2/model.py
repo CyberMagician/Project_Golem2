@@ -95,14 +95,22 @@ class EmbeddingGemma2Encoder:
         )
         return normalize_vectors(vectors, expected_rows=len(documents))
 
-    def embed_multimodal_documents(self, documents: list[str], images: list[Any]) -> np.ndarray:
-        """Embed each titled document with its vetted Wikimedia thumbnail."""
-        if len(documents) != len(images) or not documents:
-            raise ModelLoadError("Multimodal documents and images must be non-empty and one-to-one.")
-        inputs = [
-            {"text": f"{document} <|image|>", "image": image}
-            for document, image in zip(documents, images, strict=True)
-        ]
+    def embed_multimodal_documents(
+        self,
+        documents: list[str],
+        images: list[Any],
+        audios: list[Any | None],
+    ) -> np.ndarray:
+        """Embed titled text plus a vetted image and optional curated audio clip."""
+        if len(documents) != len(images) or len(documents) != len(audios) or not documents:
+            raise ModelLoadError("Multimodal documents, images, and audio must be non-empty and one-to-one.")
+        inputs: list[dict[str, Any]] = []
+        for document, image, audio in zip(documents, images, audios, strict=True):
+            item: dict[str, Any] = {"text": f"{document} <|image|>", "image": image}
+            if audio is not None:
+                item["text"] += " <|audio|>"
+                item["audio"] = audio
+            inputs.append(item)
         vectors = self.model.encode(
             inputs,
             normalize_embeddings=True,

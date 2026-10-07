@@ -122,6 +122,38 @@ def _validate_nodes(nodes: Any, targets: tuple[Target, ...]) -> tuple[dict[str, 
             and credit.strip()
         ):
             raise ArtifactValidationError(f"Node {node_id} has no image author or credit.")
+        audio = node.get("audio")
+        if audio is not None:
+            if not isinstance(audio, dict):
+                raise ArtifactValidationError(f"Node {node_id} audio metadata must be an object.")
+            for key in ("commons_file_url", "source_url"):
+                if not trusted_wikimedia_url(audio.get(key)):
+                    raise ArtifactValidationError(f"Node {node_id} has an invalid audio {key}.")
+            if not safe_https_url(audio.get("license_url")):
+                raise ArtifactValidationError(f"Node {node_id} has an invalid audio license_url.")
+            for key in (
+                "cache_file",
+                "commons_file_title",
+                "license_name",
+                "license_terms",
+                "mime",
+                "sha256",
+            ):
+                _require_string(audio, key)
+            cache_file = audio.get("cache_file")
+            if Path(cache_file).name != cache_file:
+                raise ArtifactValidationError(f"Node {node_id} has an unsafe audio cache file.")
+            if not isinstance(audio.get("byte_count"), int) or audio["byte_count"] <= 0:
+                raise ArtifactValidationError(f"Node {node_id} has an invalid audio byte count.")
+            author = audio.get("author")
+            credit = audio.get("credit")
+            if not (
+                isinstance(author, str)
+                and author.strip()
+                or isinstance(credit, str)
+                and credit.strip()
+            ):
+                raise ArtifactValidationError(f"Node {node_id} audio has no author or credit.")
     if node_ids != expected_ids:
         raise ArtifactValidationError("Corpus node order must match the canonical manifest order.")
     return tuple(nodes)
@@ -138,6 +170,9 @@ def _validate_metadata(metadata: dict[str, Any], paths: ArtifactPaths, node_coun
         raise ArtifactValidationError("Artifact embedding dimension is incompatible.")
     if metadata.get("embedding_modalities") != list(MODEL_SPEC.embedding_modalities):
         raise ArtifactValidationError("Artifact embedding modalities are incompatible.")
+    audio_count = metadata.get("audio_node_count")
+    if not isinstance(audio_count, int) or not 0 <= audio_count <= node_count:
+        raise ArtifactValidationError("Artifact audio node count is invalid.")
     if metadata.get("vectors_sha256") != _sha256(paths.vectors):
         raise ArtifactValidationError("Vector artifact checksum does not match metadata.")
     if metadata.get("corpus_sha256") != _sha256(paths.corpus):
@@ -225,6 +260,7 @@ def write_artifacts(
         "node_count": len(node_list),
         "embedding_dimension": MODEL_SPEC.embedding_dimension,
         "embedding_modalities": list(MODEL_SPEC.embedding_modalities),
+        "audio_node_count": sum(node.get("audio") is not None for node in node_list),
         "vectors_sha256": _sha256(paths.vectors),
         "corpus_sha256": _sha256(paths.corpus),
     }

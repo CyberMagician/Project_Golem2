@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "clips": [
+    {
+      "target_id": "ada-lovelace",
+      "commons_file_title": "File:Ada Lovelace.ogg"
+    },
+    {
+      "target_id": "astronomy",
+      "commons_file_title": "File:Apollo 11 Eagle Has Landed.mp3"
+    },
+    {
+      "target_id": "music-theory",
+      "commons_file_title": "File:Beethoven Moonlight 2nd movement.ogg"
+    }
+  ]
+}

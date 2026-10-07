@@ -131,6 +131,21 @@ class CommonsImage:
 
 
 @dataclass(frozen=True)
+class CommonsAudio:
+    title: str
+    file_url: str
+    source_url: str
+    mime: str
+    size: int | None
+    author: str
+    credit: str
+    license_name: str
+    license_url: str
+    license_terms: str
+    attribution_required: bool
+
+
+@dataclass(frozen=True)
 class ImageProvenance:
     thumbnail_url: str
     source_url: str
@@ -396,6 +411,78 @@ class MediaWikiResolver:
                     ),
                 )
         return {title: self._commons_cache[title] for title in requested}
+
+    def fetch_commons_audio(self, file_titles: Iterable[str]) -> dict[str, CommonsAudio]:
+        """Resolve selected Commons audio with the same attribution requirements as images."""
+        requested = list(dict.fromkeys(file_titles))
+        result: dict[str, CommonsAudio] = {}
+        for batch in _chunks(requested, MAX_BATCH_SIZE):
+            payload = self._request_json(
+                COMMONS_API,
+                {
+                    "action": "query",
+                    "prop": "imageinfo|info",
+                    "iiprop": "url|mime|size|extmetadata",
+                    "inprop": "url",
+                    "titles": "|".join(batch),
+                },
+            )
+            query = payload.get("query")
+            if not isinstance(query, dict) or not isinstance(query.get("pages"), list):
+                raise MediaWikiError("Commons audio response has no pages list.")
+            pages_by_title = {
+                page.get("title"): page
+                for page in query["pages"]
+                if isinstance(page, dict) and isinstance(page.get("title"), str)
+            }
+            normalized = {
+                item.get("from"): item.get("to")
+                for item in query.get("normalized", [])
+                if isinstance(item, dict)
+                and isinstance(item.get("from"), str)
+                and isinstance(item.get("to"), str)
+            }
+            for requested_title in batch:
+                page = pages_by_title.get(normalized.get(requested_title, requested_title))
+                imageinfo = page.get("imageinfo") if isinstance(page, dict) else None
+                info = imageinfo[0] if isinstance(imageinfo, list) and imageinfo else None
+                if not isinstance(info, dict) or not isinstance(page, dict) or page.get("missing") is not None:
+                    raise ResolutionError(f"Commons audio metadata is missing: {requested_title}")
+                metadata = info.get("extmetadata")
+                if not isinstance(metadata, dict):
+                    raise ResolutionError(f"Commons audio attribution metadata is missing: {requested_title}")
+                file_url = trusted_wikimedia_url(page.get("fullurl"))
+                source_url = trusted_wikimedia_url(info.get("url"))
+                mime = info.get("mime")
+                license_url = safe_https_url(_metadata_value(metadata, "LicenseUrl"))
+                if not all((file_url, source_url, license_url, isinstance(mime, str))):
+                    raise ResolutionError(f"Commons audio URLs or MIME are missing: {requested_title}")
+                if not mime.casefold().startswith("audio/"):
+                    raise ResolutionError(f"Commons source is not an audio file: {requested_title}")
+                author = _metadata_value(metadata, "Artist") or _metadata_value(metadata, "Author")
+                credit = _metadata_value(metadata, "Credit")
+                license_name = _metadata_value(metadata, "LicenseShortName")
+                license_terms = _metadata_value(metadata, "UsageTerms")
+                if not (_is_meaningful(author) or _is_meaningful(credit)):
+                    raise ResolutionError(f"Commons audio lacks meaningful attribution: {requested_title}")
+                if not _is_meaningful(license_name) or not _is_meaningful(license_terms):
+                    raise ResolutionError(f"Commons audio lacks license terms: {requested_title}")
+                result[requested_title] = CommonsAudio(
+                    title=page["title"],
+                    file_url=file_url,
+                    source_url=source_url,
+                    mime=mime.casefold(),
+                    size=info.get("size") if isinstance(info.get("size"), int) else None,
+                    author=author,
+                    credit=credit,
+                    license_name=license_name,
+                    license_url=license_url,
+                    license_terms=license_terms,
+                    attribution_required=(
+                        _metadata_value(metadata, "AttributionRequired").casefold() in {"true", "yes"}
+                    ),
+                )
+        return {title: result[title] for title in requested}
 
     def _thumbnail_is_rendered_image(self, thumbnail_url: str) -> bool:
         if thumbnail_url in self._thumbnail_cache:

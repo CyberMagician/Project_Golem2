@@ -48,9 +48,10 @@ class FakeResolver:
 
 
 class FakeEncoder:
-    def embed_multimodal_documents(self, documents, images):
+    def embed_multimodal_documents(self, documents, images, audios):
         assert all(document.startswith("title: ") and " | text: " in document for document in documents)
         assert len(images) == len(documents)
+        assert len(audios) == len(documents)
         return normalized_vectors(len(documents))
 
 

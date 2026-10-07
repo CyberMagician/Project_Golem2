@@ -22,3 +22,6 @@ repository. A generated corpus stores each selected file's Commons title,
 source URL, author/credit, license data, and article provenance. Rendering
 keeps that attribution available in the node popover. Rebuilders and deployers
 must comply with the individual file licenses and Wikimedia Terms of Use.
+The optional curated audio list is recorded in `data/audio_targets.json`; its
+per-clip provenance is resolved and persisted at build time under the same
+requirements.

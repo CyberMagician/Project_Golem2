@@ -1,0 +1,40 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 300,
+        "ns": 6,
+        "title": "File:Ada Lovelace.ogg",
+        "fullurl": "https://commons.wikimedia.org/wiki/File:Ada_Lovelace.ogg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/example/Ada_Lovelace.ogg",
+            "mime": "audio/ogg",
+            "size": 19,
+            "extmetadata": {
+              "Artist": {
+                "value": "<span>Example narrator</span>"
+              },
+              "Credit": {
+                "value": "Example Commons recording"
+              },
+              "LicenseShortName": {
+                "value": "CC BY 4.0"
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by/4.0/"
+              },
+              "UsageTerms": {
+                "value": "Creative Commons Attribution 4.0"
+              },
+              "AttributionRequired": {
+                "value": "true"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

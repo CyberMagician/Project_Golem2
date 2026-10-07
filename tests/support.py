@@ -91,6 +91,7 @@ def valid_nodes(targets: tuple[Target, ...] | None = None) -> list[dict[str, obj
             "position": [float(index), 0.0, 0.0],
             "neighbors": [candidate for candidate in ids if candidate != target.id][:6],
             "image": image_provenance(),
+            "audio": None,
         }
         for index, target in enumerate(targets)
     ]

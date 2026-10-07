@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Mapping, Protocol
 
 import numpy as np
 
 from .artifacts import ArtifactPaths, write_artifacts
-from .config import DEFAULT_ARTIFACT_DIR, DEFAULT_MODEL_DIR
+from .audio import CachedAudio, cache_curated_audio, load_audio_manifest
+from .config import DEFAULT_ARTIFACT_DIR, DEFAULT_AUDIO_CACHE_DIR, DEFAULT_MODEL_DIR
 from .image_inputs import load_embedding_images
 from .manifest import Target, load_manifest
 from .mediawiki import MediaWikiResolver, ResolvedTarget
@@ -17,9 +18,12 @@ from .model import EmbeddingGemma2Encoder, normalize_vectors
 
 
 class DocumentEncoder(Protocol):
-    def embed_documents(self, documents: list[str]) -> np.ndarray: ...
-
-    def embed_multimodal_documents(self, documents: list[str], images: list[Any]) -> np.ndarray: ...
+    def embed_multimodal_documents(
+        self,
+        documents: list[str],
+        images: list[Any],
+        audios: list[Any | None],
+    ) -> np.ndarray: ...
 
 
 def project_coordinates(vectors: np.ndarray) -> np.ndarray:
@@ -58,6 +62,8 @@ def build_corpus(
     encoder: DocumentEncoder,
     *,
     image_loader: Any = load_embedding_images,
+    audio_by_target: Mapping[str, CachedAudio] | None = None,
+    audio_cache_dir: Path = DEFAULT_AUDIO_CACHE_DIR,
     artifact_dir: Path = DEFAULT_ARTIFACT_DIR,
     manifest_path: Path | None = None,
 ) -> ArtifactPaths:
@@ -71,30 +77,44 @@ def build_corpus(
     images = image_loader(resolved)
     if len(images) != len(resolved):
         raise RuntimeError("Image loader did not return one verified image per target.")
+    audio_by_target = audio_by_target or {}
+    unknown_audio_targets = set(audio_by_target) - {item.target.id for item in resolved}
+    if unknown_audio_targets:
+        raise RuntimeError(f"Audio metadata has unknown target ids: {sorted(unknown_audio_targets)}")
+    audio_inputs = [
+        str(audio_cache_dir / audio_by_target[item.target.id].cache_file)
+        if item.target.id in audio_by_target
+        else None
+        for item in resolved
+    ]
     vectors = normalize_vectors(
-        encoder.embed_multimodal_documents(documents, images),
+        encoder.embed_multimodal_documents(documents, images, audio_inputs),
         expected_rows=len(resolved),
     )
     coordinates = project_coordinates(vectors)
     neighbors = neighbor_topology(vectors, [target.id for target in targets])
     nodes: list[dict[str, Any]] = []
     for index, item in enumerate(resolved):
-        nodes.append(
-            {
-                "id": item.target.id,
-                "manifest_title": item.target.title,
-                "title": item.article.title,
-                "category": item.target.category,
-                "color": item.target.color,
-                "summary": item.article.summary,
-                "article_url": item.article.article_url,
-                "source_revision_id": item.article.source_revision_id,
-                "source_revision_timestamp": item.article.source_revision_timestamp,
-                "position": coordinates[index].tolist(),
-                "neighbors": neighbors[index],
-                "image": item.image.to_dict(),
-            }
-        )
+        node = {
+            "id": item.target.id,
+            "manifest_title": item.target.title,
+            "title": item.article.title,
+            "category": item.target.category,
+            "color": item.target.color,
+            "summary": item.article.summary,
+            "article_url": item.article.article_url,
+            "source_revision_id": item.article.source_revision_id,
+            "source_revision_timestamp": item.article.source_revision_timestamp,
+            "position": coordinates[index].tolist(),
+            "neighbors": neighbors[index],
+            "image": item.image.to_dict(),
+            "audio": (
+                audio_by_target[item.target.id].to_dict()
+                if item.target.id in audio_by_target
+                else None
+            ),
+        }
+        nodes.append(node)
     return write_artifacts(nodes, vectors, artifact_dir=artifact_dir, manifest_path=manifest_path)
 
 
@@ -102,16 +122,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-dir", type=Path, default=DEFAULT_MODEL_DIR)
     parser.add_argument("--artifact-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
+    parser.add_argument("--audio-cache-dir", type=Path, default=DEFAULT_AUDIO_CACHE_DIR)
     parser.add_argument("--manifest", type=Path)
     arguments = parser.parse_args()
 
     targets = load_manifest(arguments.manifest) if arguments.manifest else load_manifest()
+    resolver = MediaWikiResolver()
+    audio_targets = load_audio_manifest(valid_target_ids={target.id for target in targets})
+    audio_by_target = cache_curated_audio(
+        audio_targets,
+        resolver,
+        cache_dir=arguments.audio_cache_dir,
+    )
     encoder = EmbeddingGemma2Encoder(arguments.model_dir)
     paths = build_corpus(
         targets,
-        MediaWikiResolver(),
+        resolver,
         encoder,
         image_loader=load_embedding_images,
+        audio_by_target=audio_by_target,
+        audio_cache_dir=arguments.audio_cache_dir,
         artifact_dir=arguments.artifact_dir,
         manifest_path=arguments.manifest,
     )
