@@ -14,7 +14,7 @@ import numpy as np
 
 from .config import ARTIFACT_SCHEMA_VERSION, DEFAULT_ARTIFACT_DIR, MODEL_SPEC
 from .manifest import Target, load_manifest
-from .mediawiki import safe_https_url, trusted_wikimedia_url
+from .mediawiki import allows_missing_license_url, safe_https_url, trusted_wikimedia_url
 from .model import ModelLoadError, normalize_vectors
 
 
@@ -109,7 +109,16 @@ def _validate_nodes(nodes: Any, targets: tuple[Target, ...]) -> tuple[dict[str, 
         for key in ("thumbnail_url", "source_url", "commons_file_url"):
             if not trusted_wikimedia_url(provenance.get(key)):
                 raise ArtifactValidationError(f"Node {node_id} has an invalid image {key}.")
-        if not safe_https_url(provenance.get("license_url")):
+        if not (
+            safe_https_url(provenance.get("license_url"))
+            or (
+                provenance.get("license_url") is None
+                and allows_missing_license_url(
+                    _require_string(provenance, "license_name"),
+                    _require_string(provenance, "license_terms"),
+                )
+            )
+        ):
             raise ArtifactValidationError(f"Node {node_id} has an invalid image license_url.")
         for key in ("commons_file_title", "license_name", "license_terms", "mime"):
             _require_string(provenance, key)
@@ -129,7 +138,16 @@ def _validate_nodes(nodes: Any, targets: tuple[Target, ...]) -> tuple[dict[str, 
             for key in ("commons_file_url", "source_url"):
                 if not trusted_wikimedia_url(audio.get(key)):
                     raise ArtifactValidationError(f"Node {node_id} has an invalid audio {key}.")
-            if not safe_https_url(audio.get("license_url")):
+            if not (
+                safe_https_url(audio.get("license_url"))
+                or (
+                    audio.get("license_url") is None
+                    and allows_missing_license_url(
+                        _require_string(audio, "license_name"),
+                        _require_string(audio, "license_terms"),
+                    )
+                )
+            ):
                 raise ArtifactValidationError(f"Node {node_id} has an invalid audio license_url.")
             for key in (
                 "cache_file",

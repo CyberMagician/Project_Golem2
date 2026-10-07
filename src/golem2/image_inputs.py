@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 import requests
 
+from .config import USER_AGENT
 from .mediawiki import REQUEST_TIMEOUT, ResolvedTarget, trusted_wikimedia_url
 
 
@@ -48,7 +49,7 @@ def load_wikimedia_image(url: str, *, session: requests.Session | None = None) -
     try:
         response = client.get(
             trusted_url,
-            headers={"Accept": "image/*"},
+            headers={"Accept": "image/*", "User-Agent": USER_AGENT},
             timeout=REQUEST_TIMEOUT,
             stream=True,
         )

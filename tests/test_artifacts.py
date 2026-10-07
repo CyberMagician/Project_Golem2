@@ -69,3 +69,18 @@ def test_builder_writes_exact_validated_corpus(tmp_path) -> None:
     assert len(loaded.nodes) == 50
     assert loaded.nodes[0]["neighbors"]
     assert all(len(node["position"]) == 3 for node in loaded.nodes)
+
+
+def test_artifacts_allow_recognized_url_less_public_domain_license(tmp_path) -> None:
+    from .support import valid_nodes
+
+    nodes = valid_nodes()
+    nodes[0]["image"]["license_name"] = "Public domain"
+    nodes[0]["image"]["license_terms"] = "Public domain"
+    nodes[0]["image"]["license_url"] = None
+    artifact_dir = tmp_path / "artifacts"
+
+    from golem2.artifacts import write_artifacts
+
+    write_artifacts(nodes, normalized_vectors(), artifact_dir=artifact_dir)
+    assert load_validated_artifacts(artifact_dir).nodes[0]["image"]["license_url"] is None

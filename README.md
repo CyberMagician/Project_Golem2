@@ -37,7 +37,9 @@ required upstream notice is retained in [`NOTICE`](NOTICE).
 - Internet access for the model download and corpus build. Normal tests never
   contact the network.
 - Roughly 4 GB free disk space and several GB of memory for the 740M
-  EmbeddingGemma 2 snapshot. CPU inference is supported but slower.
+  EmbeddingGemma 2 snapshot. CPU inference is supported but slower. The
+  declared `torchvision`, `torchaudio`, SoundFile, and librosa dependencies are
+  required by the model's image/audio processor.
 - A modern browser with WebGL.
 
 EmbeddingGemma 2 uses a shared native **768-dimensional** vector space. Corpus
@@ -47,6 +49,13 @@ the model card's `prompt_name="SearchQuery"` task prompt in that same shared
 space. This project never configures `float16`: it uses `bfloat16` only when
 CUDA reports native support and otherwise uses `float32`. It does not use
 `trust_remote_code`.
+
+The dependency declaration uses explicit released image/audio runtime
+dependencies—Pillow, torchvision, torchaudio, SoundFile, and librosa—because
+the model's real processor requires them. This is intentionally narrower than
+the broad `transformers[audio]` extra: that extra also pulls unrelated speech
+decoder packages that are not needed for EmbeddingGemma 2 and can require a
+native build on Windows.
 
 ### Optional curated audio
 
@@ -61,6 +70,16 @@ Accepted clips are bounded to 32 MiB, checksummed, cached under ignored
 The model keeps its audio encoder enabled; all other nodes remain text plus
 image embeddings in the same native 768-D space.
 
+Some Commons public-domain or CC0 records provide a license name and terms
+but no separate machine-readable `LicenseUrl`. For those recognized license
+forms, the provenance keeps the license URL empty rather than inventing one;
+the Commons file link remains available. Legacy `http://creativecommons.org`
+license URLs are upgraded only when their host and license path match the
+recognized Creative Commons form.
+Similarly, if Commons omits `UsageTerms` but provides `LicenseShortName`, the
+stored terms repeat that API-provided license name and link to its Commons
+file page; no unverified license prose is synthesized.
+
 ## Installation
 
 Run commands from the repository root.
@@ -71,7 +90,7 @@ Run commands from the repository root.
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
+python -m pip install -e ".[dev]"
 ```
 
 ### macOS / Linux
@@ -80,14 +99,16 @@ python -m pip install -r requirements-dev.txt
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
+python -m pip install -e ".[dev]"
 ```
 
-`pyproject.toml` applies the same compatible upper bounds for editable
-development installs:
+`requirements.txt` and `requirements-dev.txt` are available for constrained
+environment tooling; install the project itself after those files when using
+them instead of the editable command above:
 
 ```bash
-python -m pip install -e ".[dev]"
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .
 ```
 
 ## Download the pinned model
@@ -191,6 +212,19 @@ model dtype/query prompt behavior, curated audio cache checksum validation,
 corpus and vector compatibility, server query validation, and the frontend's
 Raycaster/text-content/URL/image-error/no-autoplay contract. The optional
 `python -m golem2.live_validate` command is the explicit live test.
+
+After the pinned model and curated audio cache have been downloaded, run the
+actual processor/inference smoke test (it is intentionally excluded from
+normal CI because it loads the 740M model):
+
+```powershell
+$env:GOLEM2_RUN_MODEL_INTEGRATION = "1"
+python -m pytest tests/test_model_integration.py
+```
+
+```bash
+GOLEM2_RUN_MODEL_INTEGRATION=1 python -m pytest tests/test_model_integration.py
+```
 
 ## Attribution and licenses
 

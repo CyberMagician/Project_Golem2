@@ -12,13 +12,14 @@ from typing import Any, Iterable
 
 import requests
 
-from .config import DEFAULT_AUDIO_CACHE_DIR, DEFAULT_AUDIO_MANIFEST_PATH
+from .config import DEFAULT_AUDIO_CACHE_DIR, DEFAULT_AUDIO_MANIFEST_PATH, USER_AGENT
 from .mediawiki import CommonsAudio, MediaWikiResolver, REQUEST_TIMEOUT, trusted_wikimedia_url
 
 
 AUDIO_MANIFEST_SCHEMA_VERSION = 1
 MAX_AUDIO_BYTES = 32 * 1024 * 1024
 _EXTENSION_BY_MIME = {
+    "application/ogg": ".ogg",
     "audio/mpeg": ".mp3",
     "audio/ogg": ".ogg",
     "audio/wav": ".wav",
@@ -26,6 +27,13 @@ _EXTENSION_BY_MIME = {
     "audio/flac": ".flac",
     "audio/x-flac": ".flac",
 }
+
+_ACCEPTED_AUDIO_MIME_TYPES = frozenset(_EXTENSION_BY_MIME)
+
+
+def is_audio_mime(mime: str) -> bool:
+    """Commons legally reports Ogg as application/ogg; accept no other application types."""
+    return mime.casefold().startswith("audio/") or mime.casefold() in _ACCEPTED_AUDIO_MIME_TYPES
 
 
 class AudioError(RuntimeError):
@@ -50,7 +58,7 @@ class CachedAudio:
     author: str
     credit: str
     license_name: str
-    license_url: str
+    license_url: str | None
     license_terms: str
     attribution_required: bool
     sha256: str
@@ -130,13 +138,13 @@ def _download_audio(source: CommonsAudio, destination: Path, session: requests.S
     try:
         response = session.get(
             source.source_url,
-            headers={"Accept": "audio/*"},
+            headers={"Accept": "audio/*", "User-Agent": USER_AGENT},
             timeout=REQUEST_TIMEOUT,
             stream=True,
         )
         response.raise_for_status()
         content_type = response.headers.get("Content-Type", "").split(";", 1)[0].casefold()
-        if not content_type.startswith("audio/"):
+        if not is_audio_mime(content_type):
             raise AudioError("Curated audio response did not have an audio MIME type.")
         declared = response.headers.get("Content-Length")
         if declared and declared.isdigit() and int(declared) > MAX_AUDIO_BYTES:

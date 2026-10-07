@@ -17,6 +17,7 @@ const nodeCredit = document.getElementById("node-credit");
 const articleLink = document.getElementById("article-link");
 const commonsLink = document.getElementById("commons-link");
 const licenseLink = document.getElementById("license-link");
+const licenseText = document.getElementById("license-text");
 const audioPanel = document.getElementById("audio-panel");
 const nodeAudio = document.getElementById("node-audio");
 const audioWaveform = document.getElementById("audio-waveform");
@@ -44,6 +45,7 @@ let points = null;
 let pointColors = null;
 let baselineColors = null;
 let selectedIndex = -1;
+let pinnedIndex = -1;
 let audioContext = null;
 let audioAnalyser = null;
 let audioSource = null;
@@ -73,6 +75,20 @@ function setLink(link, value, text) {
   link.hidden = false;
 }
 
+function setLicense(value, text) {
+  const safeUrl = safeHttpUrl(value);
+  licenseText.textContent = text;
+  licenseText.hidden = Boolean(safeUrl);
+  if (safeUrl) {
+    licenseLink.href = safeUrl;
+    licenseLink.textContent = text;
+    licenseLink.hidden = false;
+  } else {
+    licenseLink.hidden = true;
+    licenseLink.removeAttribute("href");
+  }
+}
+
 function setPopoverPosition(clientX, clientY) {
   const width = 336;
   const height = 420;
@@ -81,10 +97,22 @@ function setPopoverPosition(clientX, clientY) {
 }
 
 function hidePopover() {
+  if (pinnedIndex !== -1) {
+    return;
+  }
   selectedIndex = -1;
   popover.hidden = true;
   popover.setAttribute("aria-hidden", "true");
   nodeAudio.pause();
+}
+
+function clearSelection() {
+  pinnedIndex = -1;
+  selectedIndex = -1;
+  popover.hidden = true;
+  popover.setAttribute("aria-hidden", "true");
+  nodeAudio.pause();
+  stopWaveform();
 }
 
 function showImage(node) {
@@ -99,73 +127,73 @@ function showImage(node) {
     nodeImage.hidden = false;
     imageFallback.hidden = true;
   }
+}
 
-  function stopWaveform() {
-    if (waveformAnimation !== null) {
-      cancelAnimationFrame(waveformAnimation);
-      waveformAnimation = null;
-    }
+function stopWaveform() {
+  if (waveformAnimation !== null) {
+    cancelAnimationFrame(waveformAnimation);
+    waveformAnimation = null;
   }
+}
 
-  function drawWaveform() {
-    if (!audioAnalyser || nodeAudio.paused) {
-      stopWaveform();
-      return;
-    }
-    const context = audioWaveform.getContext("2d");
-    const width = audioWaveform.width;
-    const height = audioWaveform.height;
-    const samples = new Uint8Array(audioAnalyser.fftSize);
-    audioAnalyser.getByteTimeDomainData(samples);
-    context.clearRect(0, 0, width, height);
-    context.strokeStyle = "#7dd3fc";
-    context.lineWidth = 2;
-    context.beginPath();
-    samples.forEach((sample, index) => {
-      const x = (index / (samples.length - 1)) * width;
-      const y = (sample / 255) * height;
-      if (index === 0) {
-        context.moveTo(x, y);
-      } else {
-        context.lineTo(x, y);
-      }
-    });
-    context.stroke();
-    waveformAnimation = requestAnimationFrame(drawWaveform);
-  }
-
-  async function startWaveform() {
-    try {
-      if (!audioContext) {
-        audioContext = new AudioContext();
-        audioSource = audioContext.createMediaElementSource(nodeAudio);
-        audioAnalyser = audioContext.createAnalyser();
-        audioAnalyser.fftSize = 1024;
-        audioSource.connect(audioAnalyser);
-        audioAnalyser.connect(audioContext.destination);
-      }
-      await audioContext.resume();
-      stopWaveform();
-      drawWaveform();
-    } catch {
-      stopWaveform();
-    }
-  }
-
-  function showAudio(node) {
-    const audio = node.audio;
-    nodeAudio.pause();
-    nodeAudio.removeAttribute("src");
+function drawWaveform() {
+  if (!audioAnalyser || nodeAudio.paused) {
     stopWaveform();
-    if (!audio) {
-      audioPanel.hidden = true;
-      return;
-    }
-    audioPanel.hidden = false;
-    nodeAudio.src = `/api/audio/${encodeURIComponent(node.id)}`;
-    audioCredit.textContent = `${audio.author || audio.credit} — ${audio.license_name}: ${audio.license_terms}`;
-    setLink(audioCommonsLink, audio.commons_file_url, "Commons audio source");
+    return;
   }
+  const context = audioWaveform.getContext("2d");
+  const width = audioWaveform.width;
+  const height = audioWaveform.height;
+  const samples = new Uint8Array(audioAnalyser.fftSize);
+  audioAnalyser.getByteTimeDomainData(samples);
+  context.clearRect(0, 0, width, height);
+  context.strokeStyle = "#7dd3fc";
+  context.lineWidth = 2;
+  context.beginPath();
+  samples.forEach((sample, index) => {
+    const x = (index / (samples.length - 1)) * width;
+    const y = (sample / 255) * height;
+    if (index === 0) {
+      context.moveTo(x, y);
+    } else {
+      context.lineTo(x, y);
+    }
+  });
+  context.stroke();
+  waveformAnimation = requestAnimationFrame(drawWaveform);
+}
+
+async function startWaveform() {
+  try {
+    if (!audioContext) {
+      audioContext = new AudioContext();
+      audioSource = audioContext.createMediaElementSource(nodeAudio);
+      audioAnalyser = audioContext.createAnalyser();
+      audioAnalyser.fftSize = 1024;
+      audioSource.connect(audioAnalyser);
+      audioAnalyser.connect(audioContext.destination);
+    }
+    await audioContext.resume();
+    stopWaveform();
+    drawWaveform();
+  } catch {
+    stopWaveform();
+  }
+}
+
+function showAudio(node) {
+  const audio = node.audio;
+  nodeAudio.pause();
+  nodeAudio.removeAttribute("src");
+  stopWaveform();
+  if (!audio) {
+    audioPanel.hidden = true;
+    return;
+  }
+  audioPanel.hidden = false;
+  nodeAudio.src = `/api/audio/${encodeURIComponent(node.id)}`;
+  audioCredit.textContent = `${audio.author || audio.credit} — ${audio.license_name}: ${audio.license_terms}`;
+  setLink(audioCommonsLink, audio.commons_file_url, "Commons audio source");
 }
 
 function showPopover(index, clientX, clientY) {
@@ -181,8 +209,7 @@ function showPopover(index, clientX, clientY) {
   nodeCredit.textContent = node.image.author || node.image.credit;
   setLink(articleLink, node.article_url, "Wikipedia article");
   setLink(commonsLink, node.image.commons_file_url, "Commons source");
-  setLink(
-    licenseLink,
+  setLicense(
     node.image.license_url,
     `${node.image.license_name}: ${node.image.license_terms}`,
   );
@@ -313,9 +340,9 @@ function highlight(matches) {
   pointColors.needsUpdate = true;
 }
 
-function checkHit(event) {
+function hitIndex(event) {
   if (!points) {
-    return;
+    return null;
   }
   const bounds = graphCanvas.getBoundingClientRect();
   pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
@@ -323,22 +350,53 @@ function checkHit(event) {
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObject(points, false)[0];
   if (!hit || hit.index === undefined) {
+    return null;
+  }
+  return hit.index;
+}
+
+function checkHit(event) {
+  if (pinnedIndex !== -1) {
+    return;
+  }
+  const index = hitIndex(event);
+  if (index === null) {
     hidePopover();
     return;
   }
-  showPopover(hit.index, event.clientX, event.clientY);
+  showPopover(index, event.clientX, event.clientY);
 }
 
 graphCanvas.addEventListener("pointermove", checkHit);
 graphCanvas.addEventListener("pointerleave", hidePopover);
+graphCanvas.addEventListener("click", (event) => {
+  const index = hitIndex(event);
+  if (index === null) {
+    clearSelection();
+    status.textContent = "Selection cleared.";
+    return;
+  }
+  pinnedIndex = index;
+  graphCanvas.focus();
+  showPopover(index, event.clientX, event.clientY);
+  status.textContent = `Selected ${nodes[index].title}. Click empty space or press Escape to clear.`;
+});
 graphCanvas.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    clearSelection();
+    status.textContent = "Selection cleared.";
+    return;
+  }
   if (!nodes.length || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
     return;
   }
   event.preventDefault();
   const step = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-  const index = (selectedIndex + step + nodes.length) % nodes.length;
+  const currentIndex = pinnedIndex === -1 ? selectedIndex : pinnedIndex;
+  const index = (currentIndex + step + nodes.length) % nodes.length;
+  pinnedIndex = index;
   showPopover(index, window.innerWidth / 2, window.innerHeight / 2);
+  status.textContent = `Selected ${nodes[index].title}. Click empty space or press Escape to clear.`;
 });
 
 queryForm.addEventListener("submit", async (event) => {

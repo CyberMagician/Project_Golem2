@@ -5,8 +5,9 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from html.parser import HTMLParser
+from re import compile as compile_pattern
 from typing import Any, Iterable
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse, urlunparse
 
 import requests
 
@@ -18,9 +19,15 @@ EN_WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 REQUEST_TIMEOUT = (5, 30)
 MAX_BATCH_SIZE = 50
+ARTICLE_BATCH_SIZE = 10
 MAX_FALLBACK_IMAGES = 20
 THUMBNAIL_WIDTH = 600
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+_CREATIVE_COMMONS_LICENSE_PATH = compile_pattern(
+    r"^/(?:licenses/(?:by|by-sa|by-nd|by-nc|by-nc-sa|by-nc-nd)/\d+(?:\.\d+)?"
+    r"(?:/[a-z-]+)?/?|publicdomain/(?:zero|mark)/\d+(?:\.\d+)?/?)$"
+)
+_URL_OPTIONAL_LICENSES = frozenset({"public domain", "cc0", "cc0 1.0"})
 
 
 class MediaWikiError(RuntimeError):
@@ -64,6 +71,40 @@ def safe_https_url(value: Any) -> str | None:
     return value
 
 
+def normalize_license_url(value: Any) -> str | None:
+    """Accept HTTPS URLs and upgrade only a strict legacy Creative Commons HTTP form."""
+    https_url = safe_https_url(value)
+    if https_url:
+        return https_url
+    if not isinstance(value, str):
+        return None
+    parsed = urlparse(value)
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in {"creativecommons.org", "www.creativecommons.org"}
+        or parsed.port is not None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+        or not _CREATIVE_COMMONS_LICENSE_PATH.fullmatch(parsed.path)
+    ):
+        return None
+    return urlunparse(("https", parsed.netloc, parsed.path, "", "", ""))
+
+
+def allows_missing_license_url(license_name: str, license_terms: str) -> bool:
+    """Only well-recognized Public Domain/CC0 records may have no external license URL."""
+    values = {license_name.casefold().strip(), license_terms.casefold().strip()}
+    return bool(values & _URL_OPTIONAL_LICENSES)
+
+
+def normalize_audio_mime(value: str) -> str:
+    """Use the browser/model-friendly audio/ogg representation for Commons Ogg metadata."""
+    return "audio/ogg" if value.casefold() == "application/ogg" else value.casefold()
+
+
 def trusted_wikimedia_url(value: Any) -> str | None:
     """Only persist HTTPS article, Commons, and upload URLs returned by Wikimedia."""
     url = safe_https_url(value)
@@ -78,6 +119,17 @@ def trusted_wikimedia_url(value: Any) -> str | None:
     ):
         return None
     return url
+
+
+def commons_file_title_from_media_url(value: Any) -> str | None:
+    """Derive a Commons File: title only from a trusted pageimages API media URL."""
+    url = trusted_wikimedia_url(value)
+    if not url:
+        return None
+    file_name = unquote(urlparse(url).path.rsplit("/", 1)[-1])
+    if not file_name or "/" in file_name or "\\" in file_name:
+        return None
+    return f"File:{file_name}"
 
 
 def _chunks(values: list[str], size: int) -> Iterable[list[str]]:
@@ -121,7 +173,7 @@ class CommonsImage:
     author: str
     credit: str
     license_name: str
-    license_url: str
+    license_url: str | None
     license_terms: str
     attribution_required: bool
 
@@ -140,7 +192,7 @@ class CommonsAudio:
     author: str
     credit: str
     license_name: str
-    license_url: str
+    license_url: str | None
     license_terms: str
     attribution_required: bool
 
@@ -154,7 +206,7 @@ class ImageProvenance:
     author: str
     credit: str
     license_name: str
-    license_url: str
+    license_url: str | None
     license_terms: str
     attribution_required: bool
     mime: str
@@ -256,18 +308,18 @@ class MediaWikiResolver:
     def fetch_articles(self, titles: Iterable[str]) -> dict[str, ArticlePage]:
         requested = list(dict.fromkeys(titles))
         missing = [title for title in requested if title not in self._article_cache]
-        for batch in _chunks(missing, MAX_BATCH_SIZE):
+        # Extract responses have a content budget; smaller batches ensure every lead
+        # summary is returned while remaining courteous to the Action API.
+        for batch in _chunks(missing, ARTICLE_BATCH_SIZE):
             payload = self._request_json(
                 EN_WIKIPEDIA_API,
                 {
                     "action": "query",
                     "redirects": "1",
-                    "prop": "pageimages|info|revisions|extracts",
+                    "prop": "pageimages|info|extracts",
                     "piprop": "thumbnail|original",
                     "pithumbsize": str(THUMBNAIL_WIDTH),
                     "inprop": "url",
-                    "rvprop": "ids|timestamp",
-                    "rvlimit": "1",
                     "exintro": "1",
                     "explaintext": "1",
                     "titles": "|".join(batch),
@@ -304,6 +356,12 @@ class MediaWikiResolver:
                 if not isinstance(page, dict) or page.get("missing") is not None:
                     raise ResolutionError(f"Wikipedia article is missing: {requested_title}")
                 image_name = page.get("pageimage")
+                if not isinstance(image_name, str) or not image_name:
+                    original = page.get("original")
+                    thumbnail = page.get("thumbnail")
+                    original_url = original.get("source") if isinstance(original, dict) else None
+                    thumbnail_url = thumbnail.get("source") if isinstance(thumbnail, dict) else None
+                    image_name = commons_file_title_from_media_url(original_url or thumbnail_url)
                 summary = plain_text(page.get("extract"))
                 article_url = trusted_wikimedia_url(page.get("fullurl"))
                 if not isinstance(image_name, str) or not image_name:
@@ -322,7 +380,13 @@ class MediaWikiResolver:
                     summary=summary,
                     article_url=article_url,
                     source_revision_id=(
-                        first_revision.get("revid") if isinstance(first_revision.get("revid"), int) else None
+                        page.get("lastrevid")
+                        if isinstance(page.get("lastrevid"), int)
+                        else (
+                            first_revision.get("revid")
+                            if isinstance(first_revision.get("revid"), int)
+                            else None
+                        )
                     ),
                     source_revision_timestamp=(
                         first_revision.get("timestamp")
@@ -376,13 +440,15 @@ class MediaWikiResolver:
                 source_url = trusted_wikimedia_url(info.get("url"))
                 thumbnail_url = trusted_wikimedia_url(info.get("thumburl"))
                 mime = info.get("mime")
-                license_url = safe_https_url(_metadata_value(metadata, "LicenseUrl"))
-                if not all((file_url, source_url, thumbnail_url, license_url, isinstance(mime, str))):
+                license_name = _metadata_value(metadata, "LicenseShortName")
+                license_terms = _metadata_value(metadata, "UsageTerms") or license_name
+                license_url = normalize_license_url(_metadata_value(metadata, "LicenseUrl"))
+                if not license_url and not allows_missing_license_url(license_name, license_terms):
+                    license_url = file_url
+                if not all((file_url, source_url, thumbnail_url, isinstance(mime, str))):
                     raise ResolutionError(f"Commons image URLs or MIME are missing: {requested_title}")
                 author = _metadata_value(metadata, "Artist") or _metadata_value(metadata, "Author")
                 credit = _metadata_value(metadata, "Credit")
-                license_name = _metadata_value(metadata, "LicenseShortName")
-                license_terms = _metadata_value(metadata, "UsageTerms")
                 if not (_is_meaningful(author) or _is_meaningful(credit)):
                     raise ResolutionError(f"Commons image lacks meaningful attribution: {requested_title}")
                 if not _is_meaningful(license_name) or not _is_meaningful(license_terms):
@@ -454,15 +520,17 @@ class MediaWikiResolver:
                 file_url = trusted_wikimedia_url(page.get("fullurl"))
                 source_url = trusted_wikimedia_url(info.get("url"))
                 mime = info.get("mime")
-                license_url = safe_https_url(_metadata_value(metadata, "LicenseUrl"))
-                if not all((file_url, source_url, license_url, isinstance(mime, str))):
+                license_name = _metadata_value(metadata, "LicenseShortName")
+                license_terms = _metadata_value(metadata, "UsageTerms") or license_name
+                license_url = normalize_license_url(_metadata_value(metadata, "LicenseUrl"))
+                if not license_url and not allows_missing_license_url(license_name, license_terms):
+                    license_url = file_url
+                if not all((file_url, source_url, isinstance(mime, str))):
                     raise ResolutionError(f"Commons audio URLs or MIME are missing: {requested_title}")
-                if not mime.casefold().startswith("audio/"):
+                if not (mime.casefold().startswith("audio/") or mime.casefold() == "application/ogg"):
                     raise ResolutionError(f"Commons source is not an audio file: {requested_title}")
                 author = _metadata_value(metadata, "Artist") or _metadata_value(metadata, "Author")
                 credit = _metadata_value(metadata, "Credit")
-                license_name = _metadata_value(metadata, "LicenseShortName")
-                license_terms = _metadata_value(metadata, "UsageTerms")
                 if not (_is_meaningful(author) or _is_meaningful(credit)):
                     raise ResolutionError(f"Commons audio lacks meaningful attribution: {requested_title}")
                 if not _is_meaningful(license_name) or not _is_meaningful(license_terms):
@@ -471,7 +539,7 @@ class MediaWikiResolver:
                     title=page["title"],
                     file_url=file_url,
                     source_url=source_url,
-                    mime=mime.casefold(),
+                    mime=normalize_audio_mime(mime),
                     size=info.get("size") if isinstance(info.get("size"), int) else None,
                     author=author,
                     credit=credit,
@@ -526,12 +594,25 @@ class MediaWikiResolver:
         ][:MAX_FALLBACK_IMAGES]
         if not file_titles:
             raise ResolutionError(f"No still-image fallback exists for {article.requested_title}")
-        candidates = self.fetch_commons_images(file_titles)
+        candidates = self._fetch_valid_commons_images(file_titles)
         for file_title in file_titles:
-            candidate = candidates[file_title]
-            if candidate.is_static_image:
+            candidate = candidates.get(file_title)
+            if candidate is not None and candidate.is_static_image:
                 return candidate
         raise ResolutionError(f"No usable static-image fallback exists for {article.requested_title}")
+
+    def _fetch_valid_commons_images(self, file_titles: list[str]) -> dict[str, CommonsImage]:
+        """Keep valid results batched while isolating files rejected by strict provenance checks."""
+        try:
+            return self.fetch_commons_images(file_titles)
+        except ResolutionError:
+            if len(file_titles) == 1:
+                return {}
+            midpoint = len(file_titles) // 2
+            return {
+                **self._fetch_valid_commons_images(file_titles[:midpoint]),
+                **self._fetch_valid_commons_images(file_titles[midpoint:]),
+            }
 
     @staticmethod
     def _provenance(image: CommonsImage, page_image_title: str) -> ImageProvenance:
@@ -560,12 +641,14 @@ class MediaWikiResolver:
         targets_tuple = tuple(targets)
         articles = self.fetch_articles(target.title for target in targets_tuple)
         primary_files = [articles[target.title].page_image_title for target in targets_tuple]
-        primary_images = self.fetch_commons_images(primary_files)
+        primary_images = self._fetch_valid_commons_images(primary_files)
         resolved: list[ResolvedTarget] = []
         for target in targets_tuple:
             article = articles[target.title]
-            image = primary_images[article.page_image_title]
-            if not image.is_static_image and not self._thumbnail_is_rendered_image(image.thumbnail_url):
+            image = primary_images.get(article.page_image_title)
+            if image is None or (
+                not image.is_static_image and not self._thumbnail_is_rendered_image(image.thumbnail_url)
+            ):
                 image = self._find_still_fallback(article)
             if not image.is_static_image and not self._thumbnail_is_rendered_image(image.thumbnail_url):
                 raise ResolutionError(

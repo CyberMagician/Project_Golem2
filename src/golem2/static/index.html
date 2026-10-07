@@ -23,7 +23,7 @@
           </div>
         </form>
         <p id="status" aria-live="polite">Loading 50 attributed nodes…</p>
-        <p class="help">Hover a node for provenance. Focus the graph, then use arrow keys to inspect nodes.</p>
+        <p class="help">Hover for provenance. Click a node to keep it selected; click empty space or press Escape to clear. Focus the graph, then use arrow keys to select nodes.</p>
       </section>
       <aside id="legend" aria-label="Topic categories"></aside>
       <aside id="node-popover" role="dialog" aria-live="polite" aria-hidden="true" hidden>
@@ -40,7 +40,10 @@
           <dt>Author / credit</dt>
           <dd id="node-credit"></dd>
           <dt>License</dt>
-          <dd><a id="license-link" target="_blank" rel="noopener noreferrer"></a></dd>
+          <dd>
+            <a id="license-link" target="_blank" rel="noopener noreferrer"></a>
+            <span id="license-text" hidden></span>
+          </dd>
         </dl>
         <section id="audio-panel" aria-label="Optional curated Commons audio" hidden>
           <p class="eyebrow">Optional Commons audio</p>
