@@ -1,0 +1,44 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 200,
+        "ns": 6,
+        "title": "File:Ada_Lovelace_portrait.jpg",
+        "fullurl": "https://commons.wikimedia.org/wiki/File:Ada_Lovelace_portrait.jpg",
+        "imageinfo": [
+          {
+            "url": "https://upload.wikimedia.org/example/Ada_Lovelace_portrait.jpg",
+            "thumburl": "https://upload.wikimedia.org/example/600px-Ada_Lovelace_portrait.jpg",
+            "mime": "image/jpeg",
+            "width": 1200,
+            "height": 1500,
+            "thumbwidth": 600,
+            "thumbheight": 750,
+            "extmetadata": {
+              "Artist": {
+                "value": "<a href=\"https://example.invalid\">Example photographer</a>"
+              },
+              "Credit": {
+                "value": "Wikimedia Commons collection"
+              },
+              "LicenseShortName": {
+                "value": "CC BY-SA 4.0"
+              },
+              "LicenseUrl": {
+                "value": "https://creativecommons.org/licenses/by-sa/4.0/"
+              },
+              "UsageTerms": {
+                "value": "Creative Commons Attribution-ShareAlike 4.0"
+              },
+              "AttributionRequired": {
+                "value": "true"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

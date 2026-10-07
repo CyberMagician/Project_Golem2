@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A local semantic graph of attributed Wikipedia topics.">
+    <title>Project Golem 2</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main>
+      <div id="graph-root">
+        <canvas id="graph-canvas" tabindex="0" aria-label="Interactive semantic topic graph"></canvas>
+      </div>
+      <section id="controls" aria-label="Search controls">
+        <p class="eyebrow">Project Golem 2</p>
+        <h1>Semantic Wikipedia graph</h1>
+        <form id="query-form">
+          <label for="query-input">Find related topics</label>
+          <div class="query-row">
+            <input id="query-input" name="query" maxlength="2000" autocomplete="off" placeholder="Try quantum theory">
+            <button type="submit">Search</button>
+          </div>
+        </form>
+        <p id="status" aria-live="polite">Loading 50 attributed nodes…</p>
+        <p class="help">Hover a node for provenance. Focus the graph, then use arrow keys to inspect nodes.</p>
+      </section>
+      <aside id="legend" aria-label="Topic categories"></aside>
+      <aside id="node-popover" role="dialog" aria-live="polite" aria-hidden="true" hidden>
+        <div class="image-frame">
+          <img id="node-image" alt="" hidden>
+          <p id="image-fallback" hidden>Image unavailable.</p>
+        </div>
+        <p id="node-category" class="eyebrow"></p>
+        <h2 id="node-title"></h2>
+        <p id="node-summary"></p>
+        <p><a id="article-link" target="_blank" rel="noopener noreferrer">Wikipedia article</a></p>
+        <p><a id="commons-link" target="_blank" rel="noopener noreferrer">Commons source</a></p>
+        <dl>
+          <dt>Author / credit</dt>
+          <dd id="node-credit"></dd>
+          <dt>License</dt>
+          <dd><a id="license-link" target="_blank" rel="noopener noreferrer"></a></dd>
+        </dl>
+      </aside>
+    </main>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
