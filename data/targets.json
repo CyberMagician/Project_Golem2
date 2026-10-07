@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "targets": [
+    {
+      "id": "ada-lovelace",
+      "title": "Ada Lovelace",
+      "category": "People and ideas",
+      "color": "#EAB308"
+    },
+    {
+      "id": "alan-turing",
+      "title": "Alan Turing",
+      "category": "People and ideas",
+      "color": "#EAB308"
+    },
+    {
+      "id": "albert-einstein",
+      "title": "Albert Einstein",
+      "category": "People and ideas",
+      "color": "#EAB308"
+    },
+    {
+      "id": "isaac-newton",
+      "title": "Isaac Newton",
+      "category": "People and ideas",
+      "color": "#EAB308"
+    },
+    {
+      "id": "leonardo-da-vinci",
+      "title": "Leonardo da Vinci",
+      "category": "People and ideas",
+      "color": "#EAB308"
+    },
+    {
+      "id": "marie-curie",
+      "title": "Marie Curie",
+      "category": "People and ideas",
+      "color": "#EAB308"
+    },
+    {
+      "id": "ancient-egypt",
+      "title": "Ancient Egypt",
+      "category": "History and civilizations",
+      "color": "#F97316"
+    },
+    {
+      "id": "cleopatra",
+      "title": "Cleopatra",
+      "category": "History and civilizations",
+      "color": "#F97316"
+    },
+    {
+      "id": "industrial-revolution",
+      "title": "Industrial Revolution",
+      "category": "History and civilizations",
+      "color": "#F97316"
+    },
+    {
+      "id": "julius-caesar",
+      "title": "Julius Caesar",
+      "category": "History and civilizations",
+      "color": "#F97316"
+    },
+    {
+      "id": "renaissance",
+      "title": "Renaissance",
+      "category": "History and civilizations",
+      "color": "#F97316"
+    },
+    {
+      "id": "roman-empire",
+      "title": "Roman Empire",
+      "category": "History and civilizations",
+      "color": "#F97316"
+    },
+    {
+      "id": "astronomy",
+      "title": "Astronomy",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "astrophysics",
+      "title": "Astrophysics",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "black-hole",
+      "title": "Black hole",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "chemistry",
+      "title": "Chemistry",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "general-relativity",
+      "title": "General relativity",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "mathematics",
+      "title": "Mathematics",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "quantum-mechanics",
+      "title": "Quantum mechanics",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "solar-system",
+      "title": "Solar System",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "thermodynamics",
+      "title": "Thermodynamics",
+      "category": "Physical sciences and space",
+      "color": "#8B5CF6"
+    },
+    {
+      "id": "botany",
+      "title": "Botany",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "climate-change",
+      "title": "Climate change",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "dna",
+      "title": "DNA",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "earth",
+      "title": "Earth",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "ecology",
+      "title": "Ecology",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "evolution",
+      "title": "Evolution",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "genome",
+      "title": "Genome",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "geology",
+      "title": "Geology",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "immune-system",
+      "title": "Immune system",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "medicine",
+      "title": "Medicine",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "mount-everest",
+      "title": "Mount Everest",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "neuron",
+      "title": "Neuron",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "ocean",
+      "title": "Ocean",
+      "category": "Life and Earth sciences",
+      "color": "#22C55E"
+    },
+    {
+      "id": "computer-science",
+      "title": "Computer science",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "cryptography",
+      "title": "Cryptography",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "cybernetics",
+      "title": "Cybernetics",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "data-science",
+      "title": "Data science",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "internet",
+      "title": "Internet",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "robotics",
+      "title": "Robotics",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "smartphone",
+      "title": "Smartphone",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "world-wide-web",
+      "title": "World Wide Web",
+      "category": "Computing and systems",
+      "color": "#38BDF8"
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "basketball",
+      "title": "Basketball",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "chess",
+      "title": "Chess",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "literature",
+      "title": "Literature",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "music-theory",
+      "title": "Music theory",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "painting",
+      "title": "Painting",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "philosophy",
+      "title": "Philosophy",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    },
+    {
+      "id": "photography",
+      "title": "Photography",
+      "category": "Culture and society",
+      "color": "#F472B6"
+    }
+  ]
+}

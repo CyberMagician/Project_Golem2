@@ -1,0 +1,32 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "redirects": [
+      {
+        "from": "Ada",
+        "to": "Ada Lovelace"
+      }
+    ],
+    "pages": [
+      {
+        "pageid": 100,
+        "ns": 0,
+        "title": "Ada Lovelace",
+        "pageimage": "Ada_Lovelace_portrait.jpg",
+        "thumbnail": {
+          "source": "https://upload.wikimedia.org/example/Ada_Lovelace_portrait.jpg",
+          "width": 600,
+          "height": 750
+        },
+        "fullurl": "https://en.wikipedia.org/wiki/Ada_Lovelace",
+        "extract": "Ada Lovelace was an English mathematician and writer.",
+        "revisions": [
+          {
+            "revid": 123456,
+            "timestamp": "2026-01-01T00:00:00Z"
+          }
+        ]
+      }
+    ]
+  }
+}
